@@ -17,7 +17,7 @@
 - **تشخیص عیب:** ۷ قاعدهٔ داخلی با severity/confidence/suggestion و برچسب منبع داده (قواعد-محور، نه مدل پیش‌بینی تأییدشده).
 - **API و داشبورد:** FastAPI با احراز هویت تفکیک‌شدهٔ خواندن/کنترل، rate-limit، CSP بدون unsafe-inline، سرصفحه‌های امنیتی؛ داشبورد RTL فارسی بدون CDN با ۱۰ نما.
 - **هویت برند:** منبع یکتای `branding.json` + ماژول `omid.branding` + آزمون خودکار برند در README/داشبورد/API/مستندات.
-- **کیفیت:** ~۹۰ آزمون pytest، Lint با ruff، CLI (`selfcheck`/`serve`/`request`/`brand`)، GitHub Actions CI، مستندسازی کامل (README، ARCHITECTURE، SAFETY، API، SECURITY، CONTRIBUTING).
+- **کیفیت:** ~۹۰ آزمون pytest، Lint با ruff، CLI (`selfcheck`/`serve`/`request`/`brand`)، گردش کار CI آماده در `ci/` (فعال‌سازی نیازمند دسترسی workflow)، مستندسازی کامل (README، ARCHITECTURE، SAFETY، API، SECURITY، CONTRIBUTING).
 
 ### شناخته‌شده (صادقانه)
 - بینایی ماشین پیاده نشده است.

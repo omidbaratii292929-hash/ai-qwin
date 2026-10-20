@@ -22,7 +22,7 @@
 | `omid/api/`, `omid/dashboard/` | FastAPI (auth تفکیک‌شده، rate-limit، CSP) + داشبورد RTL بدون CDN |
 | `tests/` (۱۶ فایل) | ۱۶۳ آزمون واحد/یکپارچه/API/CLI/برند |
 | `docs/`, `README.md`, `SECURITY.md`, `CONTRIBUTING.md`, `CHANGELOG.md` | مستندات کامل |
-| `.github/workflows/ci.yml` | CI: ruff + selfcheck + pytest + گزارش JUnit |
+| `ci/github-actions-ci.yml` + `ci/README.md` | گردش کار CI آماده؛ فعال‌سازی نیازمند دسترسی `workflow` (صادقانه مستند شد) |
 
 ## ۲. آزمون‌های اجراشده (شواهد واقعی)
 
@@ -86,3 +86,4 @@ SELF-CHECK: PASS — OMID Industrial AI Agent v0.1.0
 - همهٔ تغییرات در همان مخزن متصل‌شده (`omidbaratii292929-hash/ai-qwin`) با commitهای مرحله‌ای ثبت شد.
 - هیچ رازی (توکن/رمز) در مخزن commit نشده است — تأیید با grep روی کل درخت کاری.
 - تاریخچه بازنویسی/force-push نشد.
+- **مانع ثبت‌شده:** push فایل در `.github/workflows/` توسط GitHub رد شد (توکن بدون scope `workflow`). راه‌حل امن: گردش کار در `ci/` نگه داشته شد و راهنمای فعال‌سازی یک‌مرحله‌ای نوشته شد؛ بقیهٔ پروژه با موفقیت push شد.
