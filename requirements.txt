@@ -1,0 +1,5 @@
+# OMID Industrial AI Agent — runtime dependencies
+# © هوشمندسازی صنعت امید — ما می‌سازیم تا شما راحت زندگی کنید
+fastapi>=0.110
+uvicorn>=0.27
+httpx>=0.27

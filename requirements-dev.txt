@@ -1,0 +1,6 @@
+# OMID Industrial AI Agent — development dependencies
+-r requirements.txt
+pytest>=8.0
+ruff>=0.4
+# optional hardware support (install on the machine with real equipment):
+# pyserial>=3.5

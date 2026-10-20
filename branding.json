@@ -1,0 +1,15 @@
+{
+  "identity_version": "1.0.0",
+  "project_name": "OMID Industrial AI Agent",
+  "project_name_fa": "عامل هوشمند صنعتی امید",
+  "company_name": "هوشمندسازی صنعت امید",
+  "company_name_en": "Hooshmandsazi Sanat Omid",
+  "company_name_note": "نام فارسی «هوشمندسازی صنعت امید» نام رسمی است؛ company_name_en صرفاً نویسه‌گردانی است و نام رسمی جدید محسوب نمی‌شود.",
+  "tagline": "ما می‌سازیم تا شما راحت زندگی کنید",
+  "lead_designer_and_creator": "مهندس امید براتی",
+  "collaborators": [
+    "دکتر کیمیا زهرا براتی",
+    "مهندس محسن بابایی"
+  ],
+  "repository": "https://github.com/omidbaratii292929-hash/ai-qwin"
+}

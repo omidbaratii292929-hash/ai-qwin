@@ -1,0 +1,64 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "omid-industrial-ai-agent"
+version = "0.1.0"
+description = "OMID Industrial AI Agent — عامل هوشمند صنعتی ماژولار، محلی‌محور و قابل‌ممیزی | هوشمندسازی صنعت امید"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary — © هوشمندسازی صنعت امید (Hooshmandsazi Sanat Omid)" }
+authors = [
+  { name = "مهندس امید براتی (Omid Barati) — Lead Designer & Creator" },
+]
+maintainers = [
+  { name = "دکتر کیمیا زهرا براتی" },
+  { name = "مهندس محسن بابایی" },
+]
+keywords = [
+  "industrial", "ai-agent", "automation", "grbl", "modbus", "opc-ua",
+  "digital-twin", "rag", "predictive-maintenance", "omid", "safety",
+]
+classifiers = [
+  "Private :: Do Not Upload",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Manufacturing",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: System :: Hardware",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn>=0.27",
+  "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+serial = ["pyserial>=3.5"]
+dev = ["pytest>=8.0", "ruff>=0.4"]
+
+[project.urls]
+Homepage = "https://github.com/omidbaratii292929-hash/ai-qwin"
+Repository = "https://github.com/omidbaratii292929-hash/ai-qwin"
+
+[tool.setuptools]
+packages = ["omid"]
+
+[tool.setuptools.package-data]
+omid = ["dashboard/static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B"]
+# E501: متن فارسی طول خط را باد می‌کند؛ سایر قواعد سخت‌گیرانه‌اند
+ignore = ["B008", "E501"]
