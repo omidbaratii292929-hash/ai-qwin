@@ -18,7 +18,7 @@ from omid.config import MachineLimits
 from omid.errors import ValidationError
 
 # فرمان‌های فقط‌خواندنی GRBL که عبورشان بی‌خطر است (بدون اثر حرکتی/خروجی)
-READONLY_GCODE_WHITELIST: frozenset[str] = frozenset({"?", "$$", "$#", "$i", "$g", "$n", "$c"})
+READONLY_GCODE_WHITELIST: frozenset[str] = frozenset({"?", "$$", "$#", "$I", "$G", "$N"})
 
 _PAREN_COMMENT = re.compile(r"\([^)]*\)")
 
@@ -43,9 +43,13 @@ def screen_gcode_line(line: str) -> tuple[bool, str, str]:
     Returns:
         (allowed, normalized, reason)
     """
-    normalized = strip_comments(line).lower()
-    if not normalized:
+    cleaned = strip_comments(line)
+    if not cleaned:
         return False, "", "خط خالی یا فقط کامنت."
+    # GRBL system commands are case-sensitive in their documented spelling.
+    # Canonicalize only the explicitly supported read-only commands; never lowercase arbitrary input.
+    canonical = {"?": "?", "$$": "$$", "$#": "$#", "$i": "$I", "$I": "$I", "$g": "$G", "$G": "$G", "$n": "$N", "$N": "$N"}
+    normalized = canonical.get(cleaned, cleaned)
     if normalized in READONLY_GCODE_WHITELIST:
         return True, normalized, "فرمان فقط‌خواندنی مجاز (whitelist)."
     if _MOTION_PATTERN.search(normalized):

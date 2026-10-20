@@ -127,7 +127,9 @@ class GRBLDriver(DeviceDriver):
 
     # ---------- وضعیت ----------
     def read_status(self) -> CommandResult:
-        if self.backend == "simulated" or self._serial is None:
+        if self.backend != "simulated" and self._serial is None:
+            return CommandResult(ok=False, error="اتصال سریال واقعی برقرار نیست؛ وضعیت زنده قابل خواندن نیست.", source="live")
+        if self.backend == "simulated":
             with self._lock:
                 data = {
                     "connected": self._sim_connected,
@@ -225,6 +227,8 @@ class GRBLDriver(DeviceDriver):
         allowed, normalized, reason = screen_gcode_line(text)
         if not allowed:
             return CommandResult(ok=False, error=reason, source="simulation")
+        if self.backend != "simulated" and self._serial is None:
+            return CommandResult(ok=False, error="backend سریال انتخاب شده اما اتصال واقعی برقرار نیست؛ فرمان ارسال نشد.", source="live")
         if self._serial is not None:
             raw = self._send_raw(normalized + "\n")
             if raw is None:
@@ -240,21 +244,40 @@ class GRBLDriver(DeviceDriver):
 
     # ---------- توقف اضطراری (مسیر مستقل) ----------
     def estop(self, reason: str = "") -> CommandResult:
-        source = "live" if self._serial is not None else "simulation"
-        if self._serial is not None:
-            # GRBL: '!' = feed hold فوری؛ سپس soft-reset
-            self._send_raw("!")
-            self._send_raw("\x18")
-        with self._lock:
-            self._sim_status = "Alarm"
-            self._sim_alarm = reason or "E-STOP"
+        """Request a driver-level halt; never claim a physical stop without successful I/O.
+
+        This software request is not a substitute for a certified hardware E-stop circuit.
+        """
+        source = "live" if self.backend != "simulated" else "simulation"
+        # Successful writes prove only that bytes were accepted by the serial API,
+        # not that the machine physically stopped. Hardware confirmation stays false.
+        physical_stop_confirmed = False
+        stop_commands_sent = False
+        errors: list[str] = []
+        if self.backend == "simulated":
+            with self._lock:
+                self._sim_status = "Alarm"
+                self._sim_alarm = reason or "E-STOP"
+        elif self._serial is None:
+            errors.append("اتصال سریال واقعی برقرار نیست؛ توقف فیزیکی تأیید نشد.")
+        else:
+            # GRBL realtime feed hold then soft reset; both writes must succeed.
+            hold = self._send_raw("!")
+            reset = self._send_raw("\x18")
+            if hold is None:
+                errors.append("ارسال feed-hold ناموفق بود.")
+            if reset is None:
+                errors.append("ارسال soft-reset ناموفق بود.")
+            stop_commands_sent = hold is not None and reset is not None
         self._audit(
             "driver.grbl.estop",
-            f"توقف اضطراری درایور GRBL ({reason or 'بدون دلیل'}) — منبع: {source}.",
-            data={"reason": reason, "device": self.device_id},
+            f"درخواست توقف اضطراری درایور GRBL ({reason or 'بدون دلیل'}) — منبع: {source}.",
+            data={"reason": reason, "device": self.device_id, "physical_stop_confirmed": physical_stop_confirmed, "stop_commands_sent": stop_commands_sent, "errors": errors},
             severity="critical",
         )
-        return CommandResult(ok=True, data={"status": "Alarm", "alarm": self._sim_alarm}, source=source)
+        if source == "live" and not stop_commands_sent:
+            return CommandResult(ok=False, error=" ".join(errors) or "ارسال فرمان‌های توقف تأیید نشد.", data={"physical_stop_confirmed": False, "stop_commands_sent": False}, source="live")
+        return CommandResult(ok=True, data={"status": "Alarm" if source == "simulation" else "stop_requested", "alarm": reason or "E-STOP", "physical_stop_confirmed": False, "stop_commands_sent": stop_commands_sent}, source=source)
 
     def clear_alarm(self) -> CommandResult:
         with self._lock:
