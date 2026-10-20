@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OMID Industrial AI Agent — داشبورد</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230b1220'/%3E%3Ctext x='32' y='42' font-size='30' text-anchor='middle' fill='%2339d98a' font-family='sans-serif'%3E%CE%A9%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">Ω</div>
+      <div>
+        <h1 id="project-name">OMID Industrial AI Agent</h1>
+        <p id="company-line">هوشمندسازی صنعت امید — ما می‌سازیم تا شما راحت زندگی کنید</p>
+      </div>
+    </div>
+    <div class="top-status">
+      <span class="badge" id="mode-badge" title="حالت عملیاتی">…</span>
+      <span class="badge" id="ai-badge" title="سلامت مدل زبانی محلی">AI: …</span>
+      <span class="badge" id="estop-badge" title="توقف اضطراری">E-STOP: …</span>
+      <button id="estop-btn" class="btn danger" title="توقف اضطراری — همیشه مجاز">⏹ توقف اضطراری</button>
+    </div>
+  </header>
+
+  <section id="token-bar">
+    <label>توکن خواندن:
+      <input type="password" id="read-token" placeholder="OMID_API_TOKEN" autocomplete="off" />
+    </label>
+    <label>توکن کنترل:
+      <input type="password" id="control-token" placeholder="OMID_CONTROL_TOKEN (اختیاری)" autocomplete="off" />
+    </label>
+    <button id="save-tokens" class="btn">ذخیره</button>
+    <span id="token-note" class="muted"></span>
+  </section>
+
+  <nav id="tabs" role="tablist"></nav>
+
+  <main id="content">
+    <!-- Überblick -->
+    <section class="tab" data-tab="overview">
+      <div class="grid" id="status-cards"></div>
+      <h3>چرخهٔ به‌روزرسانی</h3>
+      <p class="muted">وضعیت هر ۵ ثانیه از <code>/api/status</code> خوانده می‌شود. همهٔ داده‌های شبیه‌سازی با برچسب مشخص نمایش داده می‌شوند.</p>
+    </section>
+
+    <!-- عامل هوشمند -->
+    <section class="tab" data-tab="agent">
+      <h3>درخواست به عامل هوشمند</h3>
+      <textarea id="agent-input" rows="3" placeholder="مثلاً: وضعیت سیستم را بررسی کن / تجهیزات را کشف کن / حرکت به x=100 y=50 را شبیه‌سازی کن"></textarea>
+      <div class="row">
+        <button id="agent-send" class="btn primary">ارسال</button>
+        <button id="tasks-refresh" class="btn">به‌روزرسانی وظایف</button>
+      </div>
+      <div id="agent-result" class="panel"></div>
+      <h3>وظایف اخیر</h3>
+      <div id="tasks-list" class="panel"></div>
+    </section>
+
+    <!-- تجهیزات -->
+    <section class="tab" data-tab="devices">
+      <div class="row">
+        <button id="discover-serial" class="btn">کشف سریال</button>
+        <button id="discover-network" class="btn">probe شبکه (فقط allowlist)</button>
+        <button id="drivers-refresh" class="btn">به‌روزرسانی</button>
+      </div>
+      <h3>درایورها</h3>
+      <div id="drivers-list" class="panel"></div>
+      <h3>دستگاه‌های شناسایی‌شده</h3>
+      <div id="devices-list" class="panel"></div>
+    </section>
+
+    <!-- ایمنی -->
+    <section class="tab" data-tab="safety">
+      <div id="safety-state" class="panel"></div>
+      <h3>تغییر حالت عملیاتی</h3>
+      <div class="row">
+        <select id="mode-select">
+          <option value="observe">observe — فقط مشاهده</option>
+          <option value="simulate">simulate — شبیه‌سازی (پیش‌فرض امن)</option>
+          <option value="control">control — کنترل فیزیکی</option>
+        </select>
+        <input id="mode-confirm" placeholder="عبارت تأیید (برای control: ENABLE-PHYSICAL-CONTROL)" />
+        <button id="mode-apply" class="btn warn">اعمال</button>
+      </div>
+      <h3>آزادسازی توقف اضطراری</h3>
+      <div class="row">
+        <input id="estop-confirm" placeholder="RELEASE-ESTOP" />
+        <button id="estop-release" class="btn warn">آزادسازی</button>
+      </div>
+      <p class="muted">ارتقای حالت پس از آزادسازی E-STOP نیازمند درخواست جداگانه و قفل‌های پیکربندی است.</p>
+    </section>
+
+    <!-- شبیه‌سازی و Twin -->
+    <section class="tab" data-tab="twin">
+      <div class="sim-banner">⚠ حالت نمایش: SIMULATION — دادهٔ شبیه‌سازی‌شده اندازه‌گیری زنده نیست</div>
+      <h3>پیش‌نمایش حرکت (Digital Twin)</h3>
+      <div class="row">
+        <input id="mv-x" type="number" step="0.1" placeholder="X" />
+        <input id="mv-y" type="number" step="0.1" placeholder="Y" />
+        <input id="mv-z" type="number" step="0.1" placeholder="Z" />
+        <input id="mv-feed" type="number" step="1" placeholder="Feed" />
+        <button id="mv-preview" class="btn primary">پیش‌نمایش</button>
+      </div>
+      <div id="twin-state" class="panel"></div>
+    </section>
+
+    <!-- دانش -->
+    <section class="tab" data-tab="knowledge">
+      <div class="row">
+        <input id="kb-query" placeholder="پرسش از پایگاه دانش..." />
+        <button id="kb-search" class="btn primary">جست‌وجو</button>
+        <button id="kb-docs" class="btn">فهرست مستندات</button>
+      </div>
+      <div id="kb-results" class="panel"></div>
+      <p class="muted">محتوای بازیابی‌شده «داده» است نه «دستور»؛ ورود مستندات جدید از API با اعتبار کنترل انجام می‌شود.</p>
+    </section>
+
+    <!-- حافظه -->
+    <section class="tab" data-tab="memory">
+      <div class="row">
+        <input id="mem-query" placeholder="جست‌وجوی سوابق..." />
+        <button id="mem-search" class="btn primary">جست‌وجو</button>
+        <button id="mem-ops" class="btn">عملیات ثبت‌شده</button>
+        <button id="mem-prefs" class="btn">ترجیحات</button>
+      </div>
+      <div id="mem-results" class="panel"></div>
+    </section>
+
+    <!-- رویدادها -->
+    <section class="tab" data-tab="events">
+      <div class="row">
+        <button id="events-refresh" class="btn primary">به‌روزرسانی</button>
+        <select id="events-severity">
+          <option value="">همه سطوح</option>
+          <option value="audit">audit</option>
+          <option value="warning">warning</option>
+          <option value="error">error</option>
+          <option value="critical">critical</option>
+        </select>
+      </div>
+      <div id="events-list" class="panel"></div>
+    </section>
+
+    <!-- تشخیص عیب -->
+    <section class="tab" data-tab="diagnostics">
+      <div class="row">
+        <button id="diag-scan" class="btn primary">اسکن قواعد-محور</button>
+        <button id="diag-findings" class="btn">یافته‌های اخیر</button>
+      </div>
+      <div id="diag-results" class="panel"></div>
+      <p class="muted">این تحلیل قواعد-محور است، نه مدل پیش‌بینی تأییدشده؛ یافته‌های مبتنی بر دادهٔ شبیه‌سازی برچسب دارند.</p>
+    </section>
+
+    <!-- درباره -->
+    <section class="tab" data-tab="about">
+      <div id="about-box" class="panel"></div>
+    </section>
+  </main>
+
+  <footer id="footer">
+    <span id="footer-text">© هوشمندسازی صنعت امید — ما می‌سازیم تا شما راحت زندگی کنید</span>
+    <span id="footer-meta" class="muted"></span>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

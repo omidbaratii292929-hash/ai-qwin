@@ -1,0 +1,138 @@
+/* OMID Industrial AI Agent — داشبورد
+   © هوشمندسازی صنعت امید — ما می‌سازیم تا شما راحت زندگی کنید
+   طراح و سازندهٔ اصلی: مهندس امید براتی
+   تم تیرهٔ صنعتی، RTL، بدون هیچ منبع خارجی. */
+
+:root {
+  --bg: #0b1220;
+  --panel: #121b2e;
+  --panel-2: #0f1728;
+  --border: #22314e;
+  --text: #e6edf7;
+  --muted: #8ea0bd;
+  --accent: #39d98a;
+  --accent-2: #4aa8ff;
+  --warn: #ffb454;
+  --danger: #ff5d5d;
+  --radius: 12px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Vazirmatn", "Segoe UI", Tahoma, sans-serif;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+code { color: var(--accent); background: var(--panel-2); padding: 1px 6px; border-radius: 6px; }
+
+#topbar {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 14px 22px; background: linear-gradient(180deg, #101a30, #0b1220);
+  border-bottom: 1px solid var(--border); flex-wrap: wrap;
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.logo {
+  width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center;
+  font-size: 26px; color: var(--accent); background: var(--panel);
+  border: 1px solid var(--border); font-weight: 700;
+}
+.brand h1 { font-size: 19px; margin: 0; }
+.brand p { margin: 0; color: var(--muted); font-size: 12.5px; }
+
+.top-status { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+.badge {
+  padding: 4px 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+  border: 1px solid var(--border); background: var(--panel); color: var(--muted);
+}
+.badge.ok { color: var(--accent); border-color: rgba(57, 217, 138, .4); }
+.badge.warn { color: var(--warn); border-color: rgba(255, 180, 84, .4); }
+.badge.danger { color: #fff; background: var(--danger); border-color: var(--danger); animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: .55; } }
+
+.btn {
+  background: var(--panel); color: var(--text); border: 1px solid var(--border);
+  padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 14px;
+  font-family: inherit; transition: border-color .15s, transform .05s;
+}
+.btn:hover { border-color: var(--accent-2); }
+.btn:active { transform: translateY(1px); }
+.btn.primary { background: #14324a; border-color: #2a5f8f; color: #bfe3ff; }
+.btn.warn { background: #3a2c14; border-color: #7a5a24; color: #ffd9a0; }
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 700; }
+
+#token-bar {
+  display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+  padding: 10px 22px; border-bottom: 1px solid var(--border); background: var(--panel-2);
+}
+#token-bar label { color: var(--muted); font-size: 13px; display: flex; gap: 6px; align-items: center; }
+#token-bar input { width: 220px; }
+
+input, textarea, select {
+  background: #0d1526; color: var(--text); border: 1px solid var(--border);
+  border-radius: 10px; padding: 8px 12px; font-family: inherit; font-size: 14px;
+}
+input:focus, textarea:focus, select:focus { outline: 1px solid var(--accent-2); }
+textarea { width: 100%; resize: vertical; }
+
+#tabs { display: flex; gap: 6px; padding: 10px 22px 0; flex-wrap: wrap; }
+#tabs button {
+  background: transparent; border: 1px solid transparent; border-bottom: none;
+  color: var(--muted); padding: 9px 16px; border-radius: 10px 10px 0 0; cursor: pointer;
+  font-size: 14px; font-family: inherit;
+}
+#tabs button.active { background: var(--panel); color: var(--text); border-color: var(--border); font-weight: 600; }
+
+main { padding: 18px 22px 40px; }
+.tab { display: none; }
+.tab.active { display: block; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.card {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.card h4 { margin: 0 0 6px; font-size: 13px; color: var(--muted); font-weight: 500; }
+.card .value { font-size: 20px; font-weight: 700; color: var(--accent); }
+.card .value.small { font-size: 15px; font-weight: 500; color: var(--text); }
+
+.panel {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; margin: 10px 0; overflow-x: auto; white-space: pre-wrap;
+  font-size: 13.5px;
+}
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+.muted { color: var(--muted); font-size: 13px; }
+h3 { margin: 22px 0 8px; font-size: 16px; color: #cfe3ff; }
+
+.sim-banner {
+  background: repeating-linear-gradient(45deg, #2c2410, #2c2410 14px, #241d0c 14px, #241d0c 28px);
+  border: 1px solid #7a5a24; color: var(--warn); padding: 10px 14px; border-radius: 10px;
+  font-weight: 700; text-align: center; margin-bottom: 14px;
+}
+
+.item { border-bottom: 1px solid var(--border); padding: 8px 4px; }
+.item:last-child { border-bottom: none; }
+.item .tag { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); margin-inline-start: 6px; }
+.tag.err { color: var(--danger); border-color: rgba(255,93,93,.5); }
+.tag.ok { color: var(--accent); border-color: rgba(57,217,138,.4); }
+.tag.sim { color: var(--warn); border-color: rgba(255,180,84,.4); }
+
+#footer {
+  display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+  padding: 14px 22px; border-top: 1px solid var(--border); background: var(--panel-2);
+  color: var(--muted); font-size: 13px;
+}
+
+@media (max-width: 720px) {
+  #token-bar input { width: 140px; }
+  .brand h1 { font-size: 16px; }
+}
+
+.ms { margin-inline-start: 8px; }
