@@ -34,11 +34,11 @@ def test_motion_non_numeric_rejected():
         validate_motion(MotionCommand(x="abc"), MachineLimits())  # type: ignore[arg-type]
 
 
-@pytest.mark.parametrize("line", ["?", "$$", "$I", "$g", "$#", "  ?  ", "? ; comment", "(note) $$"])
+@pytest.mark.parametrize("line", ["?", "$$", "$I", "$i", "$G", "$g", "$N", "$n", "$#", "  ?  ", "? ; comment", "(note) $$"])
 def test_readonly_gcode_allowed(line):
     allowed, normalized, _ = screen_gcode_line(line)
     assert allowed is True
-    assert normalized in {"?", "$$", "$i", "$g", "$#"}
+    assert normalized in {"?", "$$", "$I", "$G", "$N", "$#"}
 
 
 @pytest.mark.parametrize(
@@ -60,3 +60,15 @@ def test_unknown_command_blocked():
 def test_empty_line_blocked():
     allowed, _, _ = screen_gcode_line("   ")
     assert allowed is False
+
+
+def test_check_mode_is_not_readonly():
+    allowed, _, reason = screen_gcode_line("$C")
+    assert allowed is False
+    assert reason
+
+
+def test_unsupported_case_variant_is_not_canonicalized():
+    allowed, normalized, _ = screen_gcode_line("$c")
+    assert allowed is False
+    assert normalized == "$c"
