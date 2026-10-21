@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import threading
+import time
 from collections.abc import Callable
 from typing import Any
 
@@ -197,8 +198,10 @@ class GRBLDriver(DeviceDriver):
                     source="live",
                 )
             gcode = cmd.to_gcode() + "\n"
-            raw = self._send_raw(gcode)
-            if raw is None or raw.strip().lower() != "ok":
+            raw = self._send_command(gcode)
+            lines = [line.strip() for line in raw.splitlines()] if raw else []
+            has_error = any(line.lower().startswith("error:") for line in lines)
+            if not lines or lines[-1].lower() != "ok" or has_error:
                 response = raw.strip() if raw is not None and raw.strip() else "پاسخ خالی/timeout"
                 return CommandResult(
                     ok=False,
@@ -242,8 +245,16 @@ class GRBLDriver(DeviceDriver):
         if self.backend != "simulated" and self._serial is None:
             return CommandResult(ok=False, error="backend سریال انتخاب شده اما اتصال واقعی برقرار نیست؛ فرمان ارسال نشد.", source="live")
         if self._serial is not None:
-            raw = self._send_raw(normalized + "\n")
-            if raw is None or raw.strip().lower().startswith("error:"):
+            # GRBL status reports are a single realtime frame; system queries may emit
+            # multiple lines ending in "ok" and must be drained to their terminator.
+            sender = self._send_raw if normalized == "?" else self._send_command
+            raw = sender(normalized + ("\n" if normalized != "?" else ""))
+            lines = [line.strip() for line in raw.splitlines()] if raw else []
+            has_error = any(line.lower().startswith("error:") for line in lines)
+            invalid_status_frame = normalized == "?" and not (
+                len(lines) == 1 and lines[0].startswith("<") and lines[0].endswith(">")
+            )
+            if not lines or has_error or invalid_status_frame or (normalized != "?" and lines[-1].lower() != "ok"):
                 response = raw.strip() if raw is not None and raw.strip() else "پاسخ خالی/timeout"
                 return CommandResult(
                     ok=False,
@@ -329,7 +340,7 @@ class GRBLDriver(DeviceDriver):
             return False
 
     def _send_raw(self, payload: str) -> str | None:
-        """Send a query/command and require a non-empty response from live serial."""
+        """Send a realtime status query and read its single response frame."""
         with self._lock:
             ser = self._serial
         if ser is None:
@@ -344,7 +355,50 @@ class GRBLDriver(DeviceDriver):
             line = ser.readline()
             if not line:
                 return None
-            response = line.decode("ascii", errors="replace")
-            return response if response.strip() else None
+            response = line.decode("ascii", errors="replace").strip()
+            return response if response else None
         except Exception:  # noqa: BLE001 - serial exceptions vary by driver
             return None
+
+    def _send_command(self, payload: str) -> str | None:
+        """Send a GRBL command and read all response lines through ok/error terminator."""
+        with self._lock:
+            ser = self._serial
+        if ser is None:
+            return None
+        original_timeout = getattr(ser, "timeout", 2.0)
+        manage_timeout = original_timeout is None or isinstance(original_timeout, (int, float))
+        timeout_s = float(original_timeout) if isinstance(original_timeout, (int, float)) else 2.0
+        deadline = time.monotonic() + max(2.0, min(10.0, timeout_s * 4.0))
+        response_lines: list[str] = []
+        try:
+            ser.reset_input_buffer()
+            encoded = payload.encode("ascii")
+            written = ser.write(encoded)
+            if written != len(encoded):
+                return None
+            ser.flush()
+            for _ in range(128):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return None
+                if manage_timeout:
+                    ser.timeout = remaining
+                raw_line = ser.readline()
+                if not raw_line:
+                    return None
+                line = raw_line.decode("ascii", errors="replace").strip()
+                if not line:
+                    continue
+                response_lines.append(line)
+                if line.lower() == "ok" or line.lower().startswith("error:"):
+                    return "\n".join(response_lines)
+            return None
+        except Exception:  # noqa: BLE001 - serial exceptions vary by driver
+            return None
+        finally:
+            if manage_timeout:
+                try:
+                    ser.timeout = original_timeout
+                except Exception:  # noqa: BLE001
+                    pass
