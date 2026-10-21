@@ -280,6 +280,14 @@ class GRBLDriver(DeviceDriver):
         return CommandResult(ok=True, data={"status": "Alarm" if source == "simulation" else "stop_requested", "alarm": reason or "E-STOP", "physical_stop_confirmed": False, "stop_commands_sent": stop_commands_sent}, source=source)
 
     def clear_alarm(self) -> CommandResult:
+        """Clear only simulated alarms; never claim a live controller was reset."""
+        if self.backend != "simulated":
+            return CommandResult(
+                ok=False,
+                error="پاک‌کردن آلارم زنده هنوز پیاده‌سازی نشده است؛ وضعیت دستگاه تغییر نکرد.",
+                data={"status": "unknown", "backend": self.backend},
+                source="live",
+            )
         with self._lock:
             if self._sim_alarm:
                 self._sim_alarm = None
