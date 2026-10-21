@@ -110,3 +110,12 @@ def test_simulated_metrics_labeled():
     metrics = driver.simulated_metrics()
     assert metrics["source"] == "simulation"
     assert "temperature_c" in metrics
+
+
+def test_clear_alarm_live_backend_fails_honestly():
+    driver = GRBLDriver(backend="serial", serial_port="COM_TEST")
+    result = driver.clear_alarm()
+    assert result.ok is False
+    assert result.source == "live"
+    assert result.data["status"] == "unknown"
+    assert "پیاده‌سازی نشده" in (result.error or "")
