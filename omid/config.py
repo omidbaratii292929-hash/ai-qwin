@@ -133,6 +133,9 @@ class OMIDConfig:
     network_probe_ports: tuple[int, ...] = (502, 4840, 1883)
 
     limits: MachineLimits = field(default_factory=MachineLimits)
+    grbl_backend: str = "simulated"
+    grbl_serial_port: str | None = None
+    grbl_baudrate: int = 115200
 
     def __post_init__(self) -> None:
         if self.mode not in VALID_MODES:
@@ -150,6 +153,12 @@ class OMIDConfig:
             raise ConfigError("OMID_RATE_LIMIT_PER_MIN باید بزرگ‌تر از صفر باشد.")
         if self.lang not in {"fa", "en"}:
             raise ConfigError(f"زبان پشتیبانی‌نشده: {self.lang!r} (فقط fa یا en)")
+        if self.grbl_backend not in {"simulated", "serial"}:
+            raise ConfigError("OMID_GRBL_BACKEND باید simulated یا serial باشد.")
+        if self.grbl_backend == "serial" and not (self.grbl_serial_port and self.grbl_serial_port.strip()):
+            raise ConfigError("برای OMID_GRBL_BACKEND=serial، مقدار OMID_GRBL_SERIAL_PORT الزامی است.")
+        if self.grbl_baudrate <= 0:
+            raise ConfigError("OMID_GRBL_BAUDRATE باید بزرگ‌تر از صفر باشد.")
 
     @classmethod
     def from_env(cls) -> OMIDConfig:
@@ -170,6 +179,9 @@ class OMIDConfig:
             lang=_env_str("OMID_LANG", "fa").lower(),
             network_allowlist=_env_tuple("OMID_NETWORK_ALLOWLIST"),
             network_probe_ports=_env_int_tuple("OMID_NETWORK_PROBE_PORTS", (502, 4840, 1883)),
+            grbl_backend=_env_str("OMID_GRBL_BACKEND", "simulated").lower(),
+            grbl_serial_port=_env_str_opt("OMID_GRBL_SERIAL_PORT"),
+            grbl_baudrate=_env_int("OMID_GRBL_BAUDRATE", 115200),
         )
 
     def public_view(self) -> dict:
@@ -187,6 +199,9 @@ class OMIDConfig:
             "lang": self.lang,
             "network_allowlist": list(self.network_allowlist),
             "network_probe_ports": list(self.network_probe_ports),
+            "grbl_backend": self.grbl_backend,
+            "grbl_serial_port": self.grbl_serial_port,
+            "grbl_baudrate": self.grbl_baudrate,
             "machine_limits": {
                 "x": [self.limits.x_min, self.limits.x_max],
                 "y": [self.limits.y_min, self.limits.y_max],

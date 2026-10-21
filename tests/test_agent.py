@@ -170,7 +170,10 @@ def test_physical_step_waits_for_confirmation(tmp_path, monkeypatch):
 
     ctx = AppContext(OMIDConfig.from_env())
     try:
-        assert ctx.safety.mode == "control"
+        from omid.safety.modes import CONTROL_CONFIRM_PHRASE
+
+        assert ctx.safety.mode == "simulate"
+        assert ctx.safety.request_mode("control", confirm=CONTROL_CONFIRM_PHRASE) == "control"
 
         task = ctx.tasks.create(goal="physical move", requested_by="test")
         task.steps = [Step(tool="physical_motion", args={"x": 10})]
