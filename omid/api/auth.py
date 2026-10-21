@@ -48,7 +48,8 @@ def require_read(request: Request) -> dict[str, Any]:
 
 
 def require_control(request: Request) -> dict[str, Any]:
-    """وابستگی FastAPI برای عملیات کنترلی (توکن جداگانهٔ کنترل)."""
+    """Require both the configured read identity and the separate control token."""
+    require_read(request)
     config = _config(request)
     if not config.control_token:
         raise HTTPException(

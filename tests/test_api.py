@@ -64,7 +64,20 @@ def test_401_does_not_leak_token(client):
 
 def test_control_endpoints_need_control_token(client):
     resp = client.post("/api/safety/mode", headers=AUTH, json={"mode": "simulate", "confirm": ""})
-    assert resp.status_code == 403  # بدون توکن کنترل → رد
+    assert resp.status_code == 403  # read token alone is insufficient
+    # A control token must not bypass the separate read-authentication check.
+    control_only = client.post(
+        "/api/safety/mode",
+        headers={"X-OMID-Control-Token": CONTROL_TOKEN},
+        json={"mode": "simulate", "confirm": ""},
+    )
+    assert control_only.status_code == 401
+    invalid_read = client.post(
+        "/api/safety/mode",
+        headers={"Authorization": "Bearer wrong", "X-OMID-Control-Token": CONTROL_TOKEN},
+        json={"mode": "simulate", "confirm": ""},
+    )
+    assert invalid_read.status_code == 401
     resp = client.post(
         "/api/safety/mode",
         headers=AUTH_CONTROL,
