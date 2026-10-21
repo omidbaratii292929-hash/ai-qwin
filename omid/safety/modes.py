@@ -74,6 +74,15 @@ class SafetyManager:
                 severity="warning",
             )
             mode = "simulate"
+        elif mode == "control":
+            # قفل محیطی به‌تنهایی جای تأیید صریح در زمان اجرا را نمی‌گیرد.
+            self._audit(
+                "safety.startup_control_blocked",
+                "حالت control در شروع برنامه پذیرفته نشد؛ برای ورود، تأیید runtime لازم است.",
+                data={"requested": "control", "applied": "simulate", "reason": "runtime_confirmation_required"},
+                severity="warning",
+            )
+            mode = "simulate"
         self._mode = mode
 
     # ---------- وضعیت ----------

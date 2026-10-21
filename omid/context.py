@@ -62,10 +62,21 @@ class AppContext:
         self.grbl = GRBLDriver(
             device_id="grbl-01",
             limits=self.config.limits,
-            backend="simulated",  # پیش‌فرض امن؛ backend سریال فقط با پیکربندی صریح روی ماشین مجاز
+            backend=self.config.grbl_backend,
+            serial_port=self.config.grbl_serial_port,
+            baudrate=self.config.grbl_baudrate,
             safety=self.safety,
             audit=self.audit_event,
         )
+        # اتصال سریال فقط با انتخاب صریح پیکربندی انجام می‌شود و هیچ فرمان حرکتی ارسال نمی‌کند.
+        self.grbl_connection = self.grbl.connect()
+        if not self.grbl_connection.ok:
+            self.audit_event(
+                "driver.grbl.connect_failed",
+                "اتصال GRBL برقرار نشد؛ سامانه نباید آن را دستگاه زندهٔ متصل فرض کند.",
+                data={"backend": self.config.grbl_backend, "result": self.grbl_connection.to_dict()},
+                severity="warning",
+            )
         self.drivers: dict[str, Any] = {"grbl": self.grbl}
 
         # twin و هوشمندی
@@ -146,6 +157,12 @@ class AppContext:
                 **health.to_dict(),
             },
             "devices_count": self.devices.count(),
+            "grbl_connection": {
+                "backend": self.config.grbl_backend,
+                "serial_port": self.config.grbl_serial_port,
+                "baudrate": self.config.grbl_baudrate,
+                **self.grbl_connection.to_dict(),
+            },
             "knowledge_docs": self.knowledge.count(),
             "memory": self.memory.stats(),
             "tools": len(self.tools.names()),
@@ -163,6 +180,14 @@ class AppContext:
         checks["config"] = {"ok": True, "detail": self.config.public_view()}
         checks["safety"] = {"ok": not self.safety.estop_active, "detail": self.safety.snapshot()}
         checks["tools"] = {"ok": len(self.tools.names()) >= 10, "detail": self.tools.names()}
+        checks["grbl_connection"] = {
+            "ok": self.grbl_connection.ok,
+            "detail": {
+                "backend": self.config.grbl_backend,
+                "serial_port": self.config.grbl_serial_port,
+                **self.grbl_connection.to_dict(),
+            },
+        }
         try:
             probe_key = "__selfcheck__"
             self.memory.set_preference(probe_key, "ok")
@@ -202,6 +227,10 @@ class AppContext:
 
     # ---------- پایان ----------
     def close(self) -> None:
+        try:
+            self.grbl.disconnect()
+        except Exception:  # noqa: BLE001 - shutdown must continue after a driver close failure
+            pass
         try:
             self.memory.close()
         except Exception:  # noqa: BLE001

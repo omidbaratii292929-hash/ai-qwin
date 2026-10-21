@@ -4,7 +4,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 
 from omid.drivers.grbl import GRBLDriver
-from omid.safety.modes import SafetyManager
+from omid.safety.modes import CONTROL_CONFIRM_PHRASE, SafetyManager
 from omid.safety.validator import MotionCommand
 
 
@@ -72,7 +72,8 @@ def test_serial_backend_motion_in_simulate_mode_is_only_simulated():
 
 
 def test_live_motion_rejects_grbl_error_reply():
-    safety = SafetyManager(requested_mode="control", allow_physical_control=True)
+    safety = SafetyManager(requested_mode="simulate", allow_physical_control=True)
+    safety.request_mode("control", confirm=CONTROL_CONFIRM_PHRASE)
     driver = GRBLDriver(backend="serial", serial_port="COM_TEST", safety=safety)
     driver._serial = MagicMock()
     driver._send_command = MagicMock(return_value="error:15")
@@ -85,7 +86,8 @@ def test_live_motion_rejects_grbl_error_reply():
 
 
 def test_live_motion_timeout_does_not_claim_success():
-    safety = SafetyManager(requested_mode="control", allow_physical_control=True)
+    safety = SafetyManager(requested_mode="simulate", allow_physical_control=True)
+    safety.request_mode("control", confirm=CONTROL_CONFIRM_PHRASE)
     driver = GRBLDriver(backend="serial", serial_port="COM_TEST", safety=safety)
     driver._serial = MagicMock()
     driver._send_command = MagicMock(return_value=None)

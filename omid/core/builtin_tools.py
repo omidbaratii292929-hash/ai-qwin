@@ -234,6 +234,14 @@ def _estop(args: dict[str, Any], ctx: AppContext) -> ToolResult:
 
 
 def _physical_motion(args: dict[str, Any], ctx: AppContext) -> ToolResult:
+    # Re-check at execution time; a task may have waited for human confirmation while mode changed.
+    if ctx.safety.estop_active:
+        return ToolResult(ok=False, error="توقف اضطراری فعال است؛ اجرای فیزیکی مسدود شد.")
+    if ctx.safety.mode != "control":
+        return ToolResult(
+            ok=False,
+            error="اجرای فیزیکی فقط در حالت control مجاز است؛ حرکت شبیه‌سازی‌شده به‌جای فیزیکی انجام نشد.",
+        )
     try:
         cmd = _motion_from_args(args)
     except ValueError as exc:

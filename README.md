@@ -117,6 +117,9 @@ cp .env.example .env      # ویرایش مقادیر
 | `OMID_CONTROL_TOKEN` | — | توکن جداگانهٔ عملیات کنترلی |
 | `OMID_OLLAMA_URL` / `OMID_OLLAMA_MODEL` | local / خالی | اتصال مدل محلی |
 | `OMID_NETWORK_ALLOWLIST` | خالی | تنها میزبان‌های مجاز برای probe شبکه |
+| `OMID_GRBL_BACKEND` | `simulated` | انتخاب صریح `simulated` یا درایور سریال `serial` |
+| `OMID_GRBL_SERIAL_PORT` | — | در حالت سریال الزامی است؛ مثلاً `COM11` |
+| `OMID_GRBL_BAUDRATE` | `115200` | سرعت ارتباط سریال GRBL |
 
 > **هشدار:** توکن‌ها را هرگز در مخزن commit نکنید. `.env` در `.gitignore` است.
 
@@ -155,8 +158,8 @@ python -m omid brand                # چاپ هویت رسمی پروژه
 ## حالت شبیه‌سازی و قواعد ایمنی
 
 - پیش‌فرض امن: `simulate` — هیچ فرمان فیزیکی صادر نمی‌شود.
-- ورود به `control` سه قفل هم‌زمان می‌خواهد: `OMID_ALLOW_PHYSICAL_CONTROL=1`
-  \+ عبارت تأیید `ENABLE-PHYSICAL-CONTROL` + فعال نبودن E-Stop.
+- شروع برنامه هرگز فقط با مقدار محیطی، حالت `control` را فعال نمی‌کند؛ حتی اگر `OMID_MODE=control` باشد، سامانه روی `simulate` می‌ماند.
+  برای ورود runtime به کنترل، `OMID_ALLOW_PHYSICAL_CONTROL=1`، عبارت `ENABLE-PHYSICAL-CONTROL` و خاموش بودن E-Stop لازم است.
 - عملیات فیزیکی حتی با همهٔ قفل‌ها، نیازمند **تأیید صریح انسانی** برای هر
   وظیفه است (`waiting_confirm` → `POST /api/tasks/{id}/confirm`).
 - توقف اضطراری مسیری مستقل از مدل زبانی دارد، همیشه مجاز است و سامانه را

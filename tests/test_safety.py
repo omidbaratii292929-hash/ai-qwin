@@ -29,6 +29,15 @@ def test_control_downgraded_when_not_allowed():
     assert any("downgraded" in c[0][0] for c in mgr.audit_calls)
 
 
+def test_control_is_never_enabled_by_startup_environment_alone():
+    mgr = make(requested_mode="control", allow_physical_control=True)
+    assert mgr.mode == "simulate"
+    assert any(c[0][0] == "safety.startup_control_blocked" for c in mgr.audit_calls)
+    with pytest.raises(SafetyError):
+        mgr.assert_allowed("physical")
+    assert mgr.request_mode("control", confirm=CONTROL_CONFIRM_PHRASE) == "control"
+
+
 def test_control_requires_confirm_phrase():
     mgr = make(requested_mode="simulate", allow_physical_control=True)
     with pytest.raises(SafetyError):

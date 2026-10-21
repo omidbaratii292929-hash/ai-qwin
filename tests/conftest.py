@@ -19,6 +19,9 @@ AUTH_CONTROL = {**AUTH, "X-OMID-Control-Token": CONTROL_TOKEN}
 def config(tmp_path, monkeypatch):
     monkeypatch.setenv("OMID_MODE", "simulate")
     monkeypatch.setenv("OMID_ALLOW_PHYSICAL_CONTROL", "0")
+    monkeypatch.setenv("OMID_GRBL_BACKEND", "simulated")
+    monkeypatch.delenv("OMID_GRBL_SERIAL_PORT", raising=False)
+    monkeypatch.setenv("OMID_GRBL_BAUDRATE", "115200")
     monkeypatch.setenv("OMID_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("OMID_API_TOKEN", READ_TOKEN)
     monkeypatch.setenv("OMID_CONTROL_TOKEN", CONTROL_TOKEN)

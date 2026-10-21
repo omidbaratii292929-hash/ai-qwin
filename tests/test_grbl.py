@@ -90,7 +90,7 @@ def test_control_mode_without_hardware_refuses_honestly():
 
 def test_serial_backend_without_pyserial_is_honest():
     driver = GRBLDriver(device_id="grbl-ser", backend="serial", serial_port="/dev/ttyFAKE",
-                        safety=SafetyManager(requested_mode="control", allow_physical_control=True))
+                        safety=SafetyManager(requested_mode="simulate", allow_physical_control=True))
     try:
         import serial  # type: ignore  # noqa: F401
         installed = True
