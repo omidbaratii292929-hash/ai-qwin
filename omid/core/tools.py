@@ -143,7 +143,55 @@ class ToolRegistry:
             future = self._executor.submit(tool.handler, args, ctx)
             result = future.result(timeout=tool.timeout_s)
         except FuturesTimeoutError:
-            result = ToolResult(ok=False, error=f"ابزار «{name}» پس از {tool.timeout_s}s زمان‌خورده لغو شد.")
+            cancelled_before_start = future.cancel()
+            timeout_evidence: dict[str, Any] = {
+                "timed_out": True,
+                "cancelled_before_start": cancelled_before_start,
+                "execution_may_continue": not cancelled_before_start,
+            }
+            if cancelled_before_start:
+                timeout_error = f"ابزار «{name}» پس از {tool.timeout_s}s زمان‌خورده شد و پیش از شروع لغو شد."
+            else:
+                timeout_error = (
+                    f"ابزار «{name}» پس از {tool.timeout_s}s زمان‌خورده شد؛ لغو اجرای شروع‌شده تضمین‌شده نیست "
+                    "و ممکن است در پس‌زمینه ادامه یابد. وضعیت را بررسی کنید و از اجرای فوری مجدد خودداری کنید."
+                )
+            if tool.risk == RiskLevel.PHYSICAL and not cancelled_before_start:
+                reason = f"Tool timeout: {name}"
+                safety = getattr(ctx, "safety", None)
+                if safety is not None:
+                    try:
+                        snapshot = safety.trigger_estop(reason, source="tool_timeout")
+                        timeout_evidence["logical_estop_active"] = bool(snapshot.get("estop_active"))
+                    except Exception as stop_exc:  # noqa: BLE001 - timeout handling must remain fail-safe
+                        timeout_evidence["logical_estop_error"] = type(stop_exc).__name__
+                driver = getattr(ctx, "grbl", None)
+                if driver is not None:
+                    try:
+                        stop_result = driver.estop(reason)
+                        stop_data = getattr(stop_result, "data", None) or {}
+                        timeout_evidence["driver_stop_requested"] = bool(stop_data.get("stop_commands_sent"))
+                        timeout_evidence["physical_stop_confirmed"] = stop_data.get("physical_stop_confirmed") is True
+                        timeout_evidence["driver_stop_source"] = getattr(stop_result, "source", None)
+                    except Exception as stop_exc:  # noqa: BLE001
+                        timeout_evidence["driver_stop_error"] = type(stop_exc).__name__
+                timeout_error += (
+                    " به‌دلیل ریسک فیزیکی، توقف اضطراری نرم‌افزاری و درخواست توقف درایور نیز تلاش شد؛ "
+                    "این کار توقف فیزیکی را تضمین یا تأیید نمی‌کند."
+                )
+                audit(
+                    "tool.timeout_estop",
+                    f"ابزار فیزیکی «{name}» timeout شد؛ توقف اضطراری بهترین‌تلاش اجرا شد.",
+                    data={"tool": name, **timeout_evidence},
+                    severity="critical",
+                )
+            audit(
+                "tool.timeout",
+                f"ابزار «{name}» از مهلت {tool.timeout_s}s عبور کرد.",
+                data={"tool": name, "risk": tool.risk.value, **timeout_evidence},
+                severity="critical" if tool.risk == RiskLevel.PHYSICAL else "error",
+            )
+            result = ToolResult(ok=False, error=timeout_error, evidence=timeout_evidence)
         except Exception as exc:  # noqa: BLE001 - tool failures are reported, not propagated
             result = ToolResult(ok=False, error=f"خطای اجرای ابزار «{name}»: {type(exc).__name__}: {exc}")
         elapsed_ms = round((time.monotonic() - started) * 1000, 2)
