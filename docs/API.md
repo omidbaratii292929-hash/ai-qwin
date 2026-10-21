@@ -12,7 +12,7 @@ Base URL: `http://127.0.0.1:8000` — مستندات زندهٔ Swagger: `/api/d
 | خواندن | `Authorization: Bearer <OMID_API_TOKEN>` | توکن خواندن |
 | کنترل | `X-OMID-Control-Token: <OMID_CONTROL_TOKEN>` | توکن کنترل (جداگانه) |
 
-اگر `OMID_API_TOKEN` تنظیم نشده باشد، API در «حالت توسعه» (بدون توکن) اجرا می‌شود و این موضوع صریحاً در پاسخ‌ها اعلام می‌گردد. اگر `OMID_CONTROL_TOKEN` تنظیم نشده باشد، **همهٔ endpointهای کنترلی رد می‌شوند** (پیش‌فرض امن).
+اگر `OMID_API_TOKEN` تنظیم نشده باشد، API فقط روی `localhost`/loopback اجازهٔ اجرا دارد و برای bind کردن به `0.0.0.0` یا IP/hostname شبکه، پیکربندی با خطا متوقف می‌شود. برای دسترسی شبکه‌ای، توکن خواندن قوی در `OMID_API_TOKEN` تنظیم کنید. اگر `OMID_CONTROL_TOKEN` تنظیم نشده باشد، **همهٔ endpointهای کنترلی رد می‌شوند** (پیش‌فرض امن).
 
 ## Endpointها
 

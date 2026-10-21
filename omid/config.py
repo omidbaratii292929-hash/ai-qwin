@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import ipaddress
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -18,6 +19,20 @@ from pathlib import Path
 from omid.errors import ConfigError
 
 VALID_MODES: tuple[str, ...] = ("observe", "simulate", "control")
+
+
+def _is_loopback_api_host(host: str) -> bool:
+    """Return True only for loopback IPs or localhost names."""
+    value = host.strip().lower()
+    if value in {"localhost", "localhost."}:
+        return True
+    if value.startswith("[") and value.endswith("]"):
+        value = value[1:-1]
+    try:
+        return ipaddress.ip_address(value).is_loopback
+    except ValueError:
+        # Other hostnames can resolve to remote/LAN interfaces; do not guess.
+        return False
 
 
 @dataclass(frozen=True)
@@ -124,6 +139,11 @@ class OMIDConfig:
             raise ConfigError(f"حالت نامعتبر OMID_MODE={self.mode!r} — مقادیر مجاز: {VALID_MODES}")
         if not 1 <= self.api_port <= 65535:
             raise ConfigError(f"پورت نامعتبر: {self.api_port}")
+        if self.api_token is None and not _is_loopback_api_host(self.api_host):
+            raise ConfigError(
+                "برای bind کردن API به رابط غیرمحلی (مثل 0.0.0.0 یا IP/hostname شبکه)، "
+                "تنظیم OMID_API_TOKEN الزامی است. بدون توکن فقط localhost/loopback مجاز است."
+            )
         if self.ollama_timeout <= 0:
             raise ConfigError("OMID_OLLAMA_TIMEOUT باید بزرگ‌تر از صفر باشد.")
         if self.rate_limit_per_min <= 0:
