@@ -241,6 +241,7 @@ def test_rate_limit_returns_429(tmp_path, monkeypatch):
 
 
 
+
 def test_estop_api_does_not_claim_physical_stop_when_serial_driver_is_disconnected(client, ctx):
     # The serial backend is deliberately disconnected; no hardware I/O is performed.
     ctx.grbl.backend = "serial"
@@ -254,3 +255,26 @@ def test_estop_api_does_not_claim_physical_stop_when_serial_driver_is_disconnect
     assert body["safety"]["estop_active"] is True
     assert body["driver"]["ok"] is False
     assert body["driver"]["source"] == "live"
+
+def test_rate_limit_cannot_be_bypassed_by_rotating_bearer_tokens(tmp_path, monkeypatch):
+    monkeypatch.setenv("OMID_DATA_DIR", str(tmp_path / "rl-rotate"))
+    monkeypatch.setenv("OMID_API_TOKEN", READ_TOKEN)
+    monkeypatch.setenv("OMID_OLLAMA_URL", "http://127.0.0.1:9")
+    from omid.api.app import create_app
+    from omid.config import OMIDConfig
+    from omid.context import AppContext
+
+    config = dataclasses.replace(OMIDConfig.from_env(), rate_limit_per_min=3)
+    ctx = AppContext(config)
+    try:
+        with TestClient(create_app(ctx)) as rl_client:
+            codes = [
+                rl_client.get("/api/status", headers={"Authorization": f"Bearer invalid-{i}"}).status_code
+                for i in range(5)
+            ]
+            assert codes[:3] == [401, 401, 401]
+            assert codes[3:] == [429, 429]
+            # Health remains explicitly exempt from the API request budget.
+            assert rl_client.get("/api/health").status_code == 200
+    finally:
+        ctx.close()
