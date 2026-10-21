@@ -30,7 +30,20 @@ def trigger_estop(body: EstopRequest, request: Request, _auth: dict = Depends(re
     ctx = request.app.state.ctx
     snapshot = ctx.safety.trigger_estop(body.reason, source="api")
     driver_result = ctx.grbl.estop(body.reason)
-    return {"ok": True, "safety": snapshot, "driver": driver_result.to_dict()}
+    driver = driver_result.to_dict()
+    data = driver.get("data") or {}
+    physical_stop_confirmed = data.get("physical_stop_confirmed") is True
+    return {
+        "ok": True,  # پذیرش توقف منطقی؛ نه تأیید توقف فیزیکی
+        "logical_estop_active": snapshot.get("estop_active") is True,
+        "physical_stop_confirmed": physical_stop_confirmed,
+        "operator_notice": (
+            "توقف منطقی فعال شد؛ این پاسخ تأیید توقف فیزیکی ماشین نیست. "
+            "در شرایط خطر از مدار/کلید توقف اضطراری سخت‌افزاری استفاده کنید."
+        ),
+        "safety": snapshot,
+        "driver": driver,
+    }
 
 
 @router.post("/estop/release")

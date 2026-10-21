@@ -80,6 +80,9 @@ def test_estop_flow_via_api(client):
     resp = client.post("/api/safety/estop", headers=AUTH, json={"reason": "تست از API"})
     assert resp.status_code == 200
     assert resp.json()["safety"]["estop_active"] is True
+    assert resp.json()["logical_estop_active"] is True
+    assert resp.json()["physical_stop_confirmed"] is False
+    assert "تأیید توقف فیزیکی" in resp.json()["operator_notice"]
 
     status = client.get("/api/status", headers=AUTH).json()
     assert status["safety"]["estop_active"] is True
@@ -222,3 +225,19 @@ def test_rate_limit_returns_429(tmp_path, monkeypatch):
             assert rl_client.get("/api/health").status_code == 200
     finally:
         ctx.close()
+
+
+
+def test_estop_api_does_not_claim_physical_stop_when_serial_driver_is_disconnected(client, ctx):
+    # The serial backend is deliberately disconnected; no hardware I/O is performed.
+    ctx.grbl.backend = "serial"
+    ctx.grbl._serial = None
+    resp = client.post("/api/safety/estop", headers=AUTH, json={"reason": "disconnected-driver regression"})
+    assert resp.status_code == 200  # logical E-Stop is still activated
+    body = resp.json()
+    assert body["ok"] is True
+    assert body["logical_estop_active"] is True
+    assert body["physical_stop_confirmed"] is False
+    assert body["safety"]["estop_active"] is True
+    assert body["driver"]["ok"] is False
+    assert body["driver"]["source"] == "live"
