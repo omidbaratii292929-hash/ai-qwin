@@ -32,7 +32,7 @@ Base URL: `http://127.0.0.1:8000` — مستندات زندهٔ Swagger: `/api/d
 | GET | `/api/tasks` / `/api/tasks/{id}` | فهرست/جزئیات وظایف |
 | POST | `/api/tasks/{id}/cancel` | لغو همکاری‌جویانه |
 | GET | `/api/safety` | snapshot ایمنی |
-| POST | `/api/safety/estop` `{reason}` | **توقف اضطراری — fail-safe** |
+| POST | `/api/safety/estop` `{reason}` | فعال‌سازی E-Stop منطقی؛ پاسخ `logical_estop_active` را از `physical_stop_confirmed` جدا می‌کند |
 | GET | `/api/devices` / `/api/devices/{id}` | رجیستری تجهیزات |
 | POST | `/api/devices/discover` `{scope: serial\|network}` | کشف مجاز |
 | GET | `/api/drivers` / POST `/api/drivers/{name}/status` | درایورها |
