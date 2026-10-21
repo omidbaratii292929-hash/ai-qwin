@@ -1,10 +1,13 @@
 """آزمون رجیستری ابزارها — مجوزها، timeout، kill-switch و حسابرسی."""
 from __future__ import annotations
 
+import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
 
-from omid.core.permissions import RiskLevel
-from omid.core.tools import Tool, ToolResult
+from omid.core.permissions import PermissionPolicy, RiskLevel
+from omid.core.tools import Tool, ToolRegistry, ToolResult
 
 
 def test_builtin_tools_registered(ctx):
@@ -56,8 +59,13 @@ def test_disabled_tool_killswitch(ctx):
 
 
 def test_tool_timeout(ctx):
+    started_event = threading.Event()
+    completed_event = threading.Event()
+
     def slow_handler(args, c):
+        started_event.set()
         time.sleep(2.0)
+        completed_event.set()
         return ToolResult(ok=True)
 
     ctx.tools.register(Tool(name="slow_tool", description="slow", risk=RiskLevel.READ,
@@ -68,7 +76,75 @@ def test_tool_timeout(ctx):
     assert result.ok is False
     assert "زمان‌خورده" in (result.error or "")
     assert elapsed < 1.5
+    assert started_event.is_set()
+    assert result.evidence["timed_out"] is True
+    assert result.evidence["cancelled_before_start"] is False
+    assert result.evidence["execution_may_continue"] is True
+    # ThreadPoolExecutor cannot safely terminate an already-running Python handler.
+    assert completed_event.wait(2.5) is True
 
+
+def test_physical_tool_timeout_attempts_estop_without_claiming_physical_stop():
+    class FakeSafety:
+        def __init__(self):
+            self.active = False
+
+        def assert_allowed(self, risk, *, context=""):
+            return None
+
+        def trigger_estop(self, reason, *, source="operator"):
+            self.active = True
+            return {"estop_active": True, "reason": reason, "source": source}
+
+    class FakeDriver:
+        def __init__(self):
+            self.called = False
+
+        def estop(self, reason=""):
+            self.called = True
+            return SimpleNamespace(
+                data={"stop_commands_sent": True, "physical_stop_confirmed": False},
+                source="live",
+            )
+
+    safety = FakeSafety()
+    driver = FakeDriver()
+    handler_finished = threading.Event()
+
+    def slow_physical_handler(args, ctx):
+        time.sleep(0.15)
+        handler_finished.set()
+        return ToolResult(ok=True)
+
+    audits = []
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        registry = ToolRegistry(PermissionPolicy(safety), executor=executor)
+        registry.register(Tool(
+            name="slow_physical_tool",
+            description="fake physical tool used only in this test",
+            risk=RiskLevel.PHYSICAL,
+            handler=slow_physical_handler,
+            timeout_s=0.02,
+        ))
+        result = registry.invoke(
+            "slow_physical_tool",
+            {},
+            SimpleNamespace(safety=safety, grbl=driver),
+            control_granted=True,
+            audit=lambda event, message, **kwargs: audits.append(event),
+        )
+
+    assert result.ok is False
+    assert result.evidence["timed_out"] is True
+    assert result.evidence["execution_may_continue"] is True
+    assert result.evidence["logical_estop_active"] is True
+    assert result.evidence["driver_stop_requested"] is True
+    assert result.evidence["physical_stop_confirmed"] is False
+    assert safety.active is True
+    assert driver.called is True
+    assert "tool.timeout_estop" in audits
+    assert "tool.timeout" in audits
+    assert handler_finished.is_set()
 
 def test_handler_exception_reported_not_raised(ctx):
     def bad_handler(args, c):
