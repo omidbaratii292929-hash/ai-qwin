@@ -49,3 +49,28 @@ def test_machine_limits_check():
     cfg.limits.check_axis("x", 100)
     with pytest.raises(ConfigError):
         cfg.limits.check_axis("x", 99999)
+
+
+@pytest.mark.parametrize("host", ["0.0.0.0", "::", "192.168.1.20", "omid-host.local"])
+def test_non_loopback_api_requires_read_token(host):
+    with pytest.raises(ConfigError, match="OMID_API_TOKEN"):
+        OMIDConfig(api_host=host)
+
+
+@pytest.mark.parametrize("host", ["127.0.0.1", "localhost", "::1"])
+def test_loopback_api_can_run_without_read_token(host):
+    cfg = OMIDConfig(api_host=host)
+    assert cfg.api_token is None
+
+
+def test_non_loopback_api_with_read_token_is_allowed():
+    cfg = OMIDConfig(api_host="0.0.0.0", api_token="test-read-token")
+    assert cfg.api_host == "0.0.0.0"
+    assert cfg.api_token == "test-read-token"
+
+
+def test_environment_non_loopback_host_requires_read_token(monkeypatch):
+    monkeypatch.setenv("OMID_API_HOST", "0.0.0.0")
+    monkeypatch.delenv("OMID_API_TOKEN", raising=False)
+    with pytest.raises(ConfigError, match="OMID_API_TOKEN"):
+        OMIDConfig.from_env()
