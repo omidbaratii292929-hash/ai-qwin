@@ -42,10 +42,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._lock = threading.Lock()
 
     def _client_key(self, request: Request) -> str:
-        client = request.client.host if request.client else "unknown"
-        auth = request.headers.get("authorization", "")
-        # کلید = ip + اثر انگشت توکن (بدون ذخیرهٔ خود توکن)
-        return f"{client}:{hash(auth) & 0xFFFFFFFF:08x}"
+        # Key by network peer, not by a client-supplied credential: otherwise callers
+        # can rotate invalid Authorization values to create fresh buckets and evade limits.
+        # Do not trust forwarded-IP headers unless a trusted-proxy configuration exists.
+        return request.client.host if request.client else "unknown"
 
     async def dispatch(self, request: Request, call_next) -> Response:  # noqa: ANN001
         path = request.url.path
