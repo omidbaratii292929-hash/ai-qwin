@@ -141,9 +141,15 @@ class GRBLDriver(DeviceDriver):
             return CommandResult(ok=True, data=data, source="simulation")
         # وضعیت زنده از سخت‌افزار
         raw = self._send_raw("?\n")
-        if raw is None:
-            return CommandResult(ok=False, error="خواندن وضعیت از دستگاه زنده ناموفق بود.", source="live")
-        return CommandResult(ok=True, data={"raw": raw.strip(), "backend": "serial"}, source="live")
+        normalized = raw.strip() if raw is not None else ""
+        if not normalized.startswith("<") or not normalized.endswith(">"):
+            return CommandResult(
+                ok=False,
+                error="پاسخ وضعیت GRBL خالی، ناقص یا نامعتبر است؛ وضعیت زنده تأیید نشد.",
+                data={"backend": "serial"},
+                source="live",
+            )
+        return CommandResult(ok=True, data={"raw": normalized, "backend": "serial"}, source="live")
 
     def simulated_metrics(self) -> dict[str, Any]:
         """متریک‌های برچسب‌خوردهٔ شبیه‌سازی برای تشخیص عیب (هرگز live وانمود نمی‌شود)."""
@@ -192,8 +198,14 @@ class GRBLDriver(DeviceDriver):
                 )
             gcode = cmd.to_gcode() + "\n"
             raw = self._send_raw(gcode)
-            if raw is None:
-                return CommandResult(ok=False, error="ارسال فرمان حرکتی به دستگاه ناموفق بود.", source="live")
+            if raw is None or raw.strip().lower() != "ok":
+                response = raw.strip() if raw is not None and raw.strip() else "پاسخ خالی/timeout"
+                return CommandResult(
+                    ok=False,
+                    error=f"کنترلر فرمان حرکتی را با پاسخ ok تأیید نکرد: {response}",
+                    data={"gcode": cmd.to_gcode(), "response": response},
+                    source="live",
+                )
             with self._lock:
                 self._sim_position = [
                     cmd.x if cmd.x is not None else self._sim_position[0],
@@ -231,8 +243,14 @@ class GRBLDriver(DeviceDriver):
             return CommandResult(ok=False, error="backend سریال انتخاب شده اما اتصال واقعی برقرار نیست؛ فرمان ارسال نشد.", source="live")
         if self._serial is not None:
             raw = self._send_raw(normalized + "\n")
-            if raw is None:
-                return CommandResult(ok=False, error="ارتباط با دستگاه زنده ناموفق بود.", source="live")
+            if raw is None or raw.strip().lower().startswith("error:"):
+                response = raw.strip() if raw is not None and raw.strip() else "پاسخ خالی/timeout"
+                return CommandResult(
+                    ok=False,
+                    error=f"فرمان فقط‌خواندنی از کنترلر تأیید نشد: {response}",
+                    data={"sent": normalized, "response": response},
+                    source="live",
+                )
             return CommandResult(ok=True, data={"sent": normalized, "response": raw.strip()}, source="live")
         response = _SIM_READONLY_RESPONSES.get(normalized, "ok (simulated)")
         if normalized == "?" and self.backend == "simulated":
@@ -261,14 +279,15 @@ class GRBLDriver(DeviceDriver):
         elif self._serial is None:
             errors.append("اتصال سریال واقعی برقرار نیست؛ توقف فیزیکی تأیید نشد.")
         else:
-            # GRBL realtime feed hold then soft reset; both writes must succeed.
-            hold = self._send_raw("!")
-            reset = self._send_raw("\x18")
-            if hold is None:
+            # Realtime E-Stop bytes do not require a line-based "ok" reply.
+            # Count only complete serial writes; this is still not physical-stop confirmation.
+            hold_sent = self._write_raw("!")
+            reset_sent = self._write_raw("\x18")
+            if not hold_sent:
                 errors.append("ارسال feed-hold ناموفق بود.")
-            if reset is None:
+            if not reset_sent:
                 errors.append("ارسال soft-reset ناموفق بود.")
-            stop_commands_sent = hold is not None and reset is not None
+            stop_commands_sent = hold_sent and reset_sent
         self._audit(
             "driver.grbl.estop",
             f"درخواست توقف اضطراری درایور GRBL ({reason or 'بدون دلیل'}) — منبع: {source}.",
@@ -295,17 +314,37 @@ class GRBLDriver(DeviceDriver):
         return CommandResult(ok=True, data={"status": "Idle"}, source="simulation")
 
     # ---------- داخلی ----------
+    def _write_raw(self, payload: str) -> bool:
+        """Write a real-time serial payload without waiting for a line response."""
+        with self._lock:
+            ser = self._serial
+        if ser is None:
+            return False
+        try:
+            encoded = payload.encode("ascii")
+            written = ser.write(encoded)
+            ser.flush()
+            return written == len(encoded)
+        except Exception:  # noqa: BLE001 - serial exceptions vary by driver
+            return False
+
     def _send_raw(self, payload: str) -> str | None:
-        """ارسال/دریافت روی لینک سریال واقعی (اگر متصل باشد)."""
+        """Send a query/command and require a non-empty response from live serial."""
         with self._lock:
             ser = self._serial
         if ser is None:
             return None
         try:
             ser.reset_input_buffer()
-            ser.write(payload.encode("ascii", errors="ignore"))
+            encoded = payload.encode("ascii")
+            written = ser.write(encoded)
+            if written != len(encoded):
+                return None
             ser.flush()
             line = ser.readline()
-            return line.decode("ascii", errors="replace")
-        except Exception:  # noqa: BLE001
+            if not line:
+                return None
+            response = line.decode("ascii", errors="replace")
+            return response if response.strip() else None
+        except Exception:  # noqa: BLE001 - serial exceptions vary by driver
             return None
